@@ -75,6 +75,7 @@ struct nvme_additional_smart_log_item {
 };
 #pragma pack(pop)
 
+#pragma pack(push,1)
 struct nvme_additional_smart_log {
 	struct nvme_additional_smart_log_item	program_fail_cnt;
 	struct nvme_additional_smart_log_item	erase_fail_cnt;
@@ -89,7 +90,82 @@ struct nvme_additional_smart_log {
 	struct nvme_additional_smart_log_item	pll_lock_loss_cnt;
 	struct nvme_additional_smart_log_item	nand_bytes_written;
 	struct nvme_additional_smart_log_item	host_bytes_written;
+	__u8			rsvd100[100];
+	__u32			lifetime_waf;
+	__u32			trailing_hour_waf;
+	__u8			lifetime_user_writes[16];
+	__u8			lifetime_nand_writes[16];
+	__u8			lifetime_user_reads[16];
+	__u32			lifetime_retired_block_count;
+	__u16			current_temperature;
+	__u16			capacitor_health;
+	__u32			lifetime_unused_reserved_blocks;
+	__u64			read_reclaim_count;
+	__u64			lifetime_uecc_count;
+	__u32			lifetime_used_reserved_blocks;
+	__u8			power_on_hours[16];
+	__u8			lifetime_clean_shutdown[16];
+	__u8			lifetime_unclean_shutdown[16];
+	__u32			perf_indicator;
+	__u32			wear_level_count;
+	__u8			rsvd112[112];
 };
+#pragma pack(pop)
+
+#pragma pack(push,1)
+struct nvme_ms_ext_smart_log_c0 {
+	__u8			media_units_written[16];
+	__u8			capacitor_health;
+	__u8			ecc_iterations[16];
+	__u8			supercapacitor_support;
+	__u8			temperature_throttling[7];
+	__u8			power_consumption;
+	__u8			wear_range_delta;
+	__u8			unaligned_io[6];
+	__u32			mapped_lbas;
+	__u8			program_fail_count;
+	__u8			erase_fail_count;
+	__u32			max_controller_temp;
+	__u32			max_name_temp;
+	__u32			controller_meltdown_count;
+	__u32			nand_meltdown_count;
+	__u32			controller_dtt_count;
+	__u32			nand_dtt_count;
+	__u8			rsvd117[117];
+};
+#pragma pack(pop)
+
+#pragma pack(push,1)
+struct nvme_ms_ext_smart_log_c1 {
+	__u8			log_page_id;
+	__u8			rsvd1;
+	__u16			flags;
+	__u32			log_page_size;
+	__u64			data_change_internal;
+	__u8			rsvd16[16];
+	__u32			lifetime_waf;
+	__u32			trailing_hour_waf;
+	__u32			percentage_pe_cycle_remaining;
+	__u8			lifetime_user_writes[16];
+	__u8			lifetime_nand_writes[16];
+	__u8			lifetime_user_reads[16];
+	__u32			lifetime_retired_block_count;
+	__u16			current_temperature;
+	__u16			capacitor_health;
+	__u32			reserve_block_count;
+	__u64			lifetime_read_reclaim_count;
+	__u64			lifetime_uecc_reclaim_count;
+	__u32			lifetime_reallocated_sector_count;
+	__u8			power_on_hours[16];
+	__u8			lifetime_clean_shutdown_count[16];
+	__u8			lifetime_unclean_shutdown_count[16];
+	__u32			perf_indicator;
+	__u32			wear_level_count;
+	__u32			bad_tlp_count;
+	__u32			bad_dllp_count;
+	__u32			phy_error_count;
+};
+#pragma pack(pop)
 
 struct nvme_host_mem_buffer {
 	__u32			hsize;

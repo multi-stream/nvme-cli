@@ -109,14 +109,20 @@ static void show_nvme_id_ctrl_oaes(__le32 ctrl_oaes)
 static void show_nvme_id_ctrl_oacs(__le16 ctrl_oacs)
 {
 	__u16 oacs = le16_to_cpu(ctrl_oacs);
-	__u16 rsvd = (oacs & 0xFFF0) >> 4;
+	__u16 rsvd = (oacs & 0xFFC0) >> 6;
+	__u16 dir = (oacs & 0x20) >> 5;
+	__u16 sft = (oacs & 0x10) >> 4;
 	__u16 nsm = (oacs & 0x8) >> 3;
 	__u16 fwc = (oacs & 0x4) >> 2;
 	__u16 fmt = (oacs & 0x2) >> 1;
 	__u16 sec = oacs & 0x1;
 
 	if (rsvd)
-		printf(" [15:4] : %#x\tReserved\n", rsvd);
+		printf(" [15:6] : %#x\tReserved\n", rsvd);
+	printf("  [5:5] : %#x\tDirectives %sSupported\n",
+		dir, dir ? "" : "Not ");
+	printf("  [4:4] : %#x\tDevice Self-test %sSupported\n",
+		sft, sft ? "" : "Not ");
 	printf("  [3:3] : %#x\tNS Management and Attachment %sSupported\n",
 		nsm, nsm ? "" : "Not ");
 	printf("  [2:2] : %#x\tFW Commit and Download %sSupported\n",
@@ -857,6 +863,38 @@ void show_intel_smart_log(struct nvme_additional_smart_log *smart, unsigned int 
 	printf("host_bytes_written              : %3d%%       sectors: %lu\n",
 		smart->host_bytes_written.norm,
 		int48_to_long(smart->host_bytes_written.raw));
+	printf("lifetime_user_writes            : %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->lifetime_user_writes),
+                int128_to_double(smart->lifetime_user_writes));
+	printf("lifetime_nand_writes            : %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->lifetime_nand_writes),
+                int128_to_double(smart->lifetime_nand_writes));
+
+}
+
+void show_ms_ext_smart_log_c0(struct nvme_ms_ext_smart_log_c0 *smart, unsigned int nsid, const char *devname)
+{
+	printf("Extended Smart Log Page 0xC0 for NVME device:%s namespace-id:%x\n", devname, nsid);
+	printf("media_units_written (in sectors): %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->media_units_written),
+                int128_to_double(smart->media_units_written));
+}
+
+void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned int nsid, const char *devname)
+{
+	printf("Extended Smart Log Page 0xC1 for NVME device:%s namespace-id:%x\n", devname, nsid);
+	printf("lifetime_waf                    : %.1f\n", (float) (le32_to_cpu(smart->lifetime_waf)/10));
+	printf("trailing_hour_waf               : %.1f\n", (float) (le32_to_cpu(smart->trailing_hour_waf)/10));
+	printf("lifetime_user_writes            : %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->lifetime_user_writes),
+                int128_to_double(smart->lifetime_user_writes));
+	printf("lifetime_nand_writes            : %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->lifetime_nand_writes),
+                int128_to_double(smart->lifetime_nand_writes));
+	printf("lifetime_user_reads             : %'.0Lf (%.0Lf)\n",
+                int128_to_double(smart->lifetime_user_reads),
+                int128_to_double(smart->lifetime_user_reads));
+
 }
 
 char *nvme_feature_to_string(int feature)
@@ -894,6 +932,27 @@ char* nvme_select_to_string(int sel)
 	}
 }
 
+char* nvme_dtype_to_string(__u8 dtype)
+{
+	switch (dtype) {
+	case 0:  return "Current";
+	case 1:  return "Default";
+	case 2:  return "Saved";
+	case 3:  return "Supported capabilities";
+	default: return "Reserved";
+	}
+}
+
+char* nvme_doper_to_string(__u8 doper)
+{
+	switch (doper) {
+	case 0:  return "Current";
+	case 1:  return "Default";
+	case 2:  return "Saved";
+	case 3:  return "Supported capabilities";
+	default: return "Reserved";
+	}
+}
 
 char *nvme_status_to_string(__u32 status)
 {
@@ -1046,6 +1105,57 @@ static void show_host_mem_buffer(struct nvme_host_mem_buffer *hmb)
 	printf("\tHost Memory Descriptor List Address     (HMDLAU): %u\n", hmb->hmdlau);
 	printf("\tHost Memory Descriptor List Address     (HMDLAL): %u\n", hmb->hmdlal);
 	printf("\tHost Memory Buffer Size                  (HSIZE): %u\n", hmb->hsize);
+}
+
+void nvme_directive_show_fields(__u8 dtype, __u8 doper, unsigned int result, unsigned char *buf)
+{
+	__u8 *field = buf;
+	int count, i;
+        switch (dtype) {
+        case NVME_DIR_IDENTIFY:
+                switch (doper) {
+                case NVME_DIR_ID_RCVOP_PARAM:
+			printf("\tDirective support \n");
+			printf("\t\tIdentify Directive  : %s\n", (*field & 0x1) ? "supported":"not supported");
+			printf("\t\tStream Directive    : %s\n", (*field & 0x2) ? "supported":"not supported");
+			printf("\tDirective status \n");
+			printf("\t\tIdentify Directive  : %s\n", (*(field + 32) & 0x1) ? "enabled" : "disabled");
+			printf("\t\tStream Directive    : %s\n", (*(field + 32) & 0x2) ? "enabled" : "disabled");
+                        break;
+                default:
+                        fprintf(stderr, "invalid directive operations for Identify Directives\n");
+                }
+                break;
+        case NVME_DIR_STREAMS:
+                switch (doper) {
+                case NVME_DIR_ST_RCVOP_PARAM:
+			printf("\tMax Streams Limit                          (MSL): %u\n", *(__u16 *) field);
+			printf("\tNVM Subsystem Streams Available           (NSSA): %u\n", *(__u16 *) (field + 2));
+			printf("\tNVM Subsystem Streams Open                (NSSO): %u\n", *(__u16 *) (field + 4));
+			printf("\tStream Write Size (in unit of LB size)     (SWS): %u\n", *(__u32 *) (field + 16));
+			printf("\tStream Granularity Size (in unit of SWS)   (SGS): %u\n", *(__u16 *) (field + 20));
+			printf("\tNamespece Streams Allocated                (NSA): %u\n", *(__u16 *) (field + 22));
+			printf("\tNamespace Streams Open                     (NSO): %u\n", *(__u16 *) (field + 24));
+                        break;
+                case NVME_DIR_ST_RCVOP_STATUS:
+			count = *(__u16 *) field;
+			printf("\tOpen Stream Count  : %u\n", *(__u16 *) field);
+			for ( i = 0; i < count; i++ ) {
+				printf("\tStream Identifier %.6u : %u\n", i + 1, *(__u16 *) (field + ((i + 1) * 2)));
+			}
+                        break;
+                case NVME_DIR_ST_RCVOP_RESOURCE:
+			printf("\tNamespace Streams Allocated (NSA): %u\n", result & 0xffff);
+                        break;
+                default:
+                        fprintf(stderr, "invalid directive operations for Streams Directives\n");
+                }
+                break;
+        default:
+                fprintf(stderr, "invalid directive type\n");
+                break;
+        }
+        return;
 }
 
 void nvme_feature_show_fields(__u32 fid, unsigned int result, unsigned char *buf)
@@ -1438,6 +1548,8 @@ void json_add_smart_log(struct nvme_additional_smart_log *smart,
 	struct json_object *root;
 	struct json_object *data;
 	char fmt[128];
+	long double user_writes = int128_to_double(smart->lifetime_user_writes);
+        long double nand_writes = int128_to_double(smart->lifetime_nand_writes);
 
 	root = json_create_object();
 	data = json_create_object();
@@ -1477,6 +1589,8 @@ void json_add_smart_log(struct nvme_additional_smart_log *smart,
 				  int48_to_long(smart->nand_bytes_written.raw));
 	json_object_add_value_int(data, "Host Bytes Written",
 				  int48_to_long(smart->host_bytes_written.raw));
+	json_object_add_value_float(data, "Life Time User Writes", user_writes);
+	json_object_add_value_float(data, "Life Time NAND Writes", nand_writes);
 
 	snprintf(fmt, sizeof(fmt), "Additional Smart Log for %s", devname);
 	json_object_add_value_object(root, fmt, data);

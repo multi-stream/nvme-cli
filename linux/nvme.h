@@ -566,6 +566,8 @@ enum nvme_admin_opcode {
 	nvme_admin_download_fw		= 0x11,
 	nvme_admin_ns_attach		= 0x15,
 	nvme_admin_keep_alive		= 0x18,
+	nvme_admin_directive_send	= 0x19,
+	nvme_admin_directive_recv	= 0x1a,
 	nvme_admin_format_nvm		= 0x80,
 	nvme_admin_security_send	= 0x81,
 	nvme_admin_security_recv	= 0x82,
@@ -604,6 +606,15 @@ enum {
 	NVME_FWACT_REPL		= (0 << 3),
 	NVME_FWACT_REPL_ACTV	= (1 << 3),
 	NVME_FWACT_ACTV		= (2 << 3),
+	NVME_DIR_IDENTIFY	= 0x00,
+	NVME_DIR_STREAMS	= 0x01,
+	NVME_DIR_ID_RCVOP_PARAM		= 0x01,
+	NVME_DIR_ID_SNDOP_ENABLE	= 0x01,
+	NVME_DIR_ST_RCVOP_PARAM		= 0x01,
+	NVME_DIR_ST_RCVOP_STATUS	= 0x02,
+	NVME_DIR_ST_RCVOP_RESOURCE	= 0x03,
+	NVME_DIR_ST_SNDOP_REL_ID	= 0x01,
+	NVME_DIR_ST_SNDOP_REL_RSC	= 0x02,
 };
 
 struct nvme_identify {

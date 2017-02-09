@@ -24,11 +24,16 @@ void show_error_log(struct nvme_error_log_page *err_log, int entries, const char
 void show_intel_smart_log(struct nvme_additional_smart_log *smart, unsigned int nsid, const char *devname);
 void show_smart_log(struct nvme_smart_log *smart, unsigned int nsid, const char *devname);
 void show_fw_log(struct nvme_firmware_log_page *fw_log, const char *devname);
+void show_ms_ext_smart_log_c0(struct nvme_ms_ext_smart_log_c0 *smart, unsigned int nsid, const char *devname);
+void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned int nsid, const char *devname);
 
 void nvme_feature_show_fields(__u32 fid, unsigned int result, unsigned char *buf);
+void nvme_directive_show_fields(__u8 dtype, __u8 doper, unsigned int result, unsigned char *buf);
 char *nvme_status_to_string(__u32 status);
 char *nvme_select_to_string(int sel);
 char *nvme_feature_to_string(int feature);
+char *nvme_dtype_to_string(__u8 dtype);
+char *nvme_doper_to_string(__u8 doper);
 
 void json_nvme_id_ctrl(struct nvme_id_ctrl *ctrl, unsigned int mode);
 void json_nvme_id_ns(struct nvme_id_ns *ns, unsigned int flags);

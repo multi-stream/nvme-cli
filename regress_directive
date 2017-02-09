@@ -1,0 +1,173 @@
+#!/bin/bash
+#
+# Copyright 2016 Samsung Semiconductor, Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+# MA  02110-1301, USA.
+#
+#   Description:
+#     Regression test-suite for the NVM Express CLI.
+#
+
+DEVICE=
+WRITE=false
+LIST=false
+
+RAND_BASE=temp.rand
+RAND_WFILE=${RAND_BASE}.write
+RAND_RFILE=${RAND_BASE}.read
+RAND_SIZE=4096
+RAND_BLK=`echo "${RAND_SIZE} / 512 - 1" | bc`
+
+green=$(tput bold)$(tput setaf 2)
+red=$(tput bold)$(tput setaf 1)
+rst=$(tput sgr0)
+
+while getopts ":d:wl" opt; do
+  case $opt in
+    d)
+      DEVICE=${OPTARG}
+      ;;
+    w)
+      echo "WARNING: Write mode enabled, this might trash your drive!"
+      WRITE=true
+      ;;
+    l)
+      LIST=true
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$DEVICE" ]; then
+     echo "regress: You must specify a NVMe device using -d"
+     exit 1
+fi
+
+function print_pass_fail {
+    $* > /dev/null 2>&1
+    if (( $? )); then
+        echo ${red}"FAILED!"${rst}
+        echo "Failed running command: "
+        echo  "   $*"
+        exit 1
+    else
+        echo ${green}"PASSED!"${rst}
+    fi
+}
+
+function run_test {
+    LINE="$*"
+    printf  "  %-3s   %-130s : " "RUN" "${LINE::130}"
+    print_pass_fail $*
+}
+
+make clean > /dev/null || exit -1
+make install > /dev/null || exit -1
+
+echo "regular commands ..."
+if $LIST ; then
+    run_test nvme list
+fi
+run_test nvme id-ctrl ${DEVICE}
+run_test nvme id-ns -raw-binary ${DEVICE}
+run_test nvme list-ns -n 1 ${DEVICE}
+run_test nvme get-ns-id ${DEVICE}
+run_test nvme get-log ${DEVICE}  --log-id=2 --log-len=512
+run_test nvme fw-log ${DEVICE}
+run_test nvme fw-log ${DEVICE} -b
+run_test nvme smart-log ${DEVICE}
+run_test nvme error-log ${DEVICE}
+run_test nvme get-feature ${DEVICE} -f 7
+run_test nvme flush ${DEVICE}
+
+if $WRITE ; then
+    run_test dd if=/dev/urandom of=${RAND_WFILE} bs=${RAND_SIZE} count=1
+    run_test nvme write ${DEVICE} --start-block=0 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+fi
+run_test nvme read ${DEVICE} --start-block=0 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_RFILE} --latency
+if $WRITE ; then
+    run_test diff ${RAND_RFILE} ${RAND_WFILE}
+    rm ${RAND_WFILE} > /dev/null
+fi
+rm ${RAND_RFILE} > /dev/null
+
+echo " "
+echo "directive commands ..."
+#echo "directive param ..."
+run_test nvme dir-receive ${DEVICE} --dir-type 0 --dir-oper 1
+
+#echo "enable directive ..."
+run_test nvme dir-send ${DEVICE} --endir 1 --dir-type 0 --dir-oper 1 --target-dir 1
+
+#echo "stream param ..."
+run_test nvme dir-receive ${DEVICE} --dir-type 1 --dir-oper 1
+
+#echo "stream status ..."
+run_test nvme dir-receive ${DEVICE} --dir-type 1 --dir-oper 2
+
+#echo "release resource ..."
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 2
+
+#echo "allocate stream resource ..."
+run_test nvme dir-receive ${DEVICE} --dir-type 1 --dir-oper 3 --req-resource 4
+
+#echo "directive write ..."
+if $WRITE ; then
+    run_test dd if=/dev/urandom of=${RAND_WFILE} bs=${RAND_SIZE} count=1
+    run_test nvme write ${DEVICE} --start-block=0x0 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 0
+    run_test nvme write ${DEVICE} --start-block=0x2000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 1
+    run_test nvme write ${DEVICE} --start-block=0x4000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 2
+    run_test nvme write ${DEVICE} --start-block=0x6000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 3
+    run_test nvme write ${DEVICE} --start-block=0x8000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 4
+    run_test nvme compare ${DEVICE} --start-block=0x0 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x2000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x4000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x6000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x8000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    rm ${RAND_WFILE} > /dev/null
+fi
+
+#echo "release stream ..."
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 1 --dir-spec 1
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 1 --dir-spec 2
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 1 --dir-spec 3
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 1 --dir-spec 4
+
+if $WRITE ; then
+    run_test dd if=/dev/urandom of=${RAND_WFILE} bs=${RAND_SIZE} count=1
+    run_test nvme write ${DEVICE} --start-block=0x2000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 1
+    run_test nvme write ${DEVICE} --start-block=0x4000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 2
+    run_test nvme write ${DEVICE} --start-block=0x6000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 3
+    run_test nvme write ${DEVICE} --start-block=0x8000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE} --dir-type 1 --dir-spec 4
+    run_test nvme compare ${DEVICE} --start-block=0x2000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x4000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x6000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    run_test nvme compare ${DEVICE} --start-block=0x8000 --block-count=${RAND_BLK} --data-size=${RAND_SIZE} --data ${RAND_WFILE}
+    rm ${RAND_WFILE} > /dev/null
+fi
+
+#echo "release resource ..."
+run_test nvme dir-send ${DEVICE} --dir-type 1 --dir-oper 2
+
+#echo "disable directive ..."
+run_test nvme dir-send ${DEVICE} --endir 0 --dir-type 0 --dir-oper 1 --target-dir 1
