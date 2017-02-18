@@ -1207,7 +1207,8 @@ static int dir_receive(int argc, char **argv, struct command *cmd, struct plugin
 	case NVME_DIR_IDENTIFY:
 		switch (cfg.doper) {
 		case NVME_DIR_ID_RCVOP_PARAM:
-			cfg.data_len = 4096;
+			if (!cfg.data_len)
+				cfg.data_len = 4096;
 			break;
 		default:
 			fprintf(stderr, "invalid directive operations for Identify Directives\n");
@@ -1217,10 +1218,12 @@ static int dir_receive(int argc, char **argv, struct command *cmd, struct plugin
 	case NVME_DIR_STREAMS:
 		switch (cfg.doper) {
 		case NVME_DIR_ST_RCVOP_PARAM:
-			cfg.data_len = 32;
+			if (!cfg.data_len)
+				cfg.data_len = 32;
 			break;
 		case NVME_DIR_ST_RCVOP_STATUS:
-			cfg.data_len = 128 * 1024;
+			if (!cfg.data_len)
+				cfg.data_len = 128 * 1024;
 			break;
 		case NVME_DIR_ST_RCVOP_RESOURCE:
 			dw12 = cfg.nsr;
@@ -1250,10 +1253,8 @@ static int dir_receive(int argc, char **argv, struct command *cmd, struct plugin
         }
 
 	if (!err) {
-		printf("dir-receive: type %#02x (%s), operation %#02x (%s), spec %#04x, result %#04x \n",
-				cfg.dtype, nvme_dtype_to_string(cfg.dtype),
-				cfg.doper, nvme_doper_to_string(cfg.doper),
-				cfg.dspec, result);
+		printf("dir-receive: type %#x, operation %#x, spec %#x, nsid %#x, result %#x \n",
+				cfg.dtype, cfg.doper, cfg.dspec, cfg.namespace_id, result);
 		if (cfg.human_readable)
 			nvme_directive_show_fields(cfg.dtype, cfg.doper, result, buf);
 		else {
@@ -1878,10 +1879,8 @@ static int dir_send(int argc, char **argv, struct command *cmd, struct plugin *p
 		return errno;
 	}
 	if (!err) {
-		printf("dir-send: type %#02x (%s), operation %#02x (%s), spec_val %#04x, result %#04x \n",
-                                cfg.dtype, nvme_dtype_to_string(cfg.dtype),
-                                cfg.doper, nvme_doper_to_string(cfg.doper),
-                                cfg.dspec, result);
+		printf("dir-send: type %#x, operation %#x, spec_val %#x, nsid %#x, result %#x \n",
+                                cfg.dtype, cfg.doper, cfg.dspec, cfg.namespace_id, result);
 		if (buf) {
 			if (!cfg.raw_binary)
 				d(buf, cfg.data_len, 16, 1);

@@ -1,16 +1,33 @@
 #!/bin/bash
-if [ $# -lt 1 ]; then
-   tput bold
-   echo "***************************************************"
-   echo "FAILED to perform the requested operation.........."
-   echo "***************************************************"
-   tput sgr0
-   echo "Usage $0 <dev_handle>"
-   exit 1
+DEVICE=
+NSID=
+usage() { echo "Usage: $0 [-d <device>] [-n <ns_id>]" 1>&2; exit 1; }
+
+while getopts ":d:n:" opt; do
+  case $opt in
+    d)
+      DEVICE=${OPTARG}
+      ;;
+    n)
+      NSID=${OPTARG}
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ -z "$DEVICE" ]; then
+     DEVICE=/dev/nvme0n1
+fi
+
+if [ -z "$NSID" ]; then
+     NSID=0xffffffff
 fi
 
 ### enable directive type 1 (Streams)
-CMDLINE="sudo nvme dir-send ${1} --dir-type 0 --dir-oper 1 --target-dir 1 --endir 1"
+CMDLINE="sudo nvme dir-send ${DEVICE} --dir-type 0 --dir-oper 1 --target-dir 1 --endir 1 --namespace-id ${NSID}"
 echo $CMDLINE
 exec $CMDLINE
 
