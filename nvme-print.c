@@ -897,6 +897,12 @@ void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned i
 
 }
 
+void show_waf_log(struct nvme_waf_log *waf, unsigned int nsid, const char *devname)
+{
+	printf("Custom WAF Log Page 0xD1 for NVME device:%s namespace-id:%x\n", devname, nsid);
+	printf("WAF                    : %f\n", (float) (le16_to_cpu(waf->waf_val)/100));
+}
+
 char *nvme_feature_to_string(int feature)
 {
 	switch (feature) {

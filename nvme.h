@@ -167,6 +167,10 @@ struct nvme_ms_ext_smart_log_c1 {
 };
 #pragma pack(pop)
 
+struct nvme_waf_log {
+	__u16			waf_val;
+};
+
 struct nvme_host_mem_buffer {
 	__u32			hsize;
 	__u32			hmdlal;

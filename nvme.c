@@ -441,6 +441,9 @@ static int get_log(int argc, char **argv, struct command *cmd, struct plugin *pl
 				else if (cfg.log_id == 0xc1)
 					show_ms_ext_smart_log_c1((struct nvme_ms_ext_smart_log_c1 *) log,
 									cfg.namespace_id, devicename);
+				else if (cfg.log_id == 0xd1)
+					show_waf_log((struct nvme_waf_log *) log,
+									cfg.namespace_id, devicename);
 				else
 					d(log, cfg.log_len, 16, 1);
 			} else {

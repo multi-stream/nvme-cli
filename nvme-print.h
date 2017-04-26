@@ -26,6 +26,7 @@ void show_smart_log(struct nvme_smart_log *smart, unsigned int nsid, const char 
 void show_fw_log(struct nvme_firmware_log_page *fw_log, const char *devname);
 void show_ms_ext_smart_log_c0(struct nvme_ms_ext_smart_log_c0 *smart, unsigned int nsid, const char *devname);
 void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned int nsid, const char *devname);
+void show_waf_log(struct nvme_waf_log *waf, unsigned int nsid, const char *devname);
 
 void nvme_feature_show_fields(__u32 fid, unsigned int result, unsigned char *buf);
 void nvme_directive_show_fields(__u8 dtype, __u8 doper, unsigned int result, unsigned char *buf);
