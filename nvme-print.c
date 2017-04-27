@@ -883,8 +883,8 @@ void show_ms_ext_smart_log_c0(struct nvme_ms_ext_smart_log_c0 *smart, unsigned i
 void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned int nsid, const char *devname)
 {
 	printf("Extended Smart Log Page 0xC1 for NVME device:%s namespace-id:%x\n", devname, nsid);
-	printf("lifetime_waf                    : %.1f\n", (float) (le32_to_cpu(smart->lifetime_waf)/10));
-	printf("trailing_hour_waf               : %.1f\n", (float) (le32_to_cpu(smart->trailing_hour_waf)/10));
+	printf("lifetime_waf                    : %.1f\n", ((float) le32_to_cpu(smart->lifetime_waf))/10);
+	printf("trailing_hour_waf               : %.1f\n", ((float) le32_to_cpu(smart->trailing_hour_waf))/10);
 	printf("lifetime_user_writes            : %'.0Lf (%.0Lf)\n",
                 int128_to_double(smart->lifetime_user_writes),
                 int128_to_double(smart->lifetime_user_writes));
@@ -900,7 +900,7 @@ void show_ms_ext_smart_log_c1(struct nvme_ms_ext_smart_log_c1 *smart, unsigned i
 void show_waf_log(struct nvme_waf_log *waf, unsigned int nsid, const char *devname)
 {
 	printf("Custom WAF Log Page 0xD1 for NVME device:%s namespace-id:%x\n", devname, nsid);
-	printf("WAF                    : %f\n", (float) (le16_to_cpu(waf->waf_val)/100));
+	printf("WAF                    : %.2f (raw %d)\n", ((float) le16_to_cpu(waf->waf_val))/100, le16_to_cpu(waf->waf_val));
 }
 
 char *nvme_feature_to_string(int feature)
